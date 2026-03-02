@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Sistem Pencarian SBKS</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+body{
+background:#f4f7fc;
+font-family:"Segoe UI",sans-serif;
+margin:0;
+}
+
+/* HEADER */
+.header-bar{
+background:#0b3d91;
+color:white;
+padding:22px 35px;
+display:flex;
+align-items:center;
+gap:20px;
+}
+
+.header-title{
+font-size:28px;
+font-weight:700;
+font-style:italic;
+letter-spacing:1px;
+margin:0;
+}
+
+.header-sub{
+font-size:15px;
+font-weight:500;
+opacity:0.9;
+}
+
+.header-bottom-line{
+height:4px;
+background:#00aaff;
+}
+
+/* SIDEBAR */
+.sidebar{
+background:linear-gradient(180deg,#0b3d91,#1565c0);
+color:white;
+border-radius:14px;
+padding:25px;
+box-shadow:0 6px 18px rgba(0,0,0,0.15);
+}
+
+.sidebar label{
+font-size:13px;
+margin-top:10px;
+}
+
+.sidebar .form-select{
+font-size:13px;
+border:none;
+border-radius:8px;
+}
+
+/* CONTENT */
+.table-card{
+background:white;
+border-radius:14px;
+padding:25px;
+box-shadow:0 6px 18px rgba(0,0,0,0.08);
+position:relative;
+}
+
+.peraturan-bar{
+background:#e8f0ff;
+border-left:5px solid #0b3d91;
+padding:10px 15px;
+border-radius:8px;
+font-size:13px;
+margin-bottom:10px;
+display:none;
+}
+
+.active-tag{
+  background:#0b3d91;
+  color:white;
+  padding:6px 14px;
+  border-radius:20px;
+  font-size:12px;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+}
+
+.tag-close{
+  font-size:14px;
+  font-weight:bold;
+  opacity:0.8;
+}
+
+.active-tag:hover{
+  background:#c62828;
+}
+
+#summaryBox{
+font-size:13px;
+margin-bottom:8px;
+color:#6c757d;
+}
+
+.table-wrapper{
+max-height:500px;
+overflow:auto;
+}
+
+.table{
+font-size:13px;
+}
+
+.table thead th{
+background:#0b3d91;
+color:white;
+position:sticky;
+top:0;
+z-index:2;
+cursor:pointer;
+text-align:center;
+vertical-align:middle;
+}
+
+.numeric-col{
+text-align:right;
+white-space:nowrap;
+font-weight:500;
+}
+
+.pagination-clean{
+display:flex;
+justify-content:space-between;
+align-items:center;
+font-size:13px;
+margin-top:15px;
+}
+
+/* LOADING */
+.loading-overlay{
+position:absolute;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(255,255,255,0.7);
+display:flex;
+justify-content:center;
+align-items:center;
+z-index:10;
+display:none;
+}
+.spinner-border{
+width:3rem;
+height:3rem;
+color:#0b3d91;
+}
+</style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<div class="header-bar">
+<img src="https://upload.wikimedia.org/wikipedia/commons/2/28/Lambang_Badan_Pusat_Statistik_%28BPS%29_Indonesia.svg" width="60">
+<div>
+<h1 class="header-title">BADAN PUSAT STATISTIK</h1>
+<div class="header-sub">Sistem Pencarian Standar Biaya Kegiatan Statistik</div>
+</div>
+</div>
+<div class="header-bottom-line"></div>
+
+<div class="container-fluid py-4">
+<div class="row">
+
+<!-- SIDEBAR -->
+<div class="col-md-3">
+<div class="sidebar">
+
+<h6 class="fw-bold mb-3">Filter Data</h6>
+
+<label>Kedeputian</label>
+<select id="kedeputian" class="form-select">
+<option value="">Semua</option>
+{% for k in kedeputian_list %}
+<option value="{{k}}">{{k}}</option>
+{% endfor %}
+</select>
+
+<label>Kegiatan</label>
+<select id="kegiatan" class="form-select">
+<option value="">Semua</option>
+</select>
+
+<label>Provinsi</label>
+<select id="provinsi" class="form-select">
+<option value="">Semua</option>
+{% for p in provinsi_list %}
+<option value="{{p}}">{{p}}</option>
+{% endfor %}
+</select>
+
+<label>Kab/Kota</label>
+<select id="kabkota" class="form-select">
+<option value="">Semua</option>
+</select>
+
+<label>Kategori</label>
+<select id="kategori" class="form-select">
+<option value="">Semua</option>
+<option value="PNS">PNS</option>
+<option value="Non PNS">Non PNS</option>
+</select>
+
+<div class="d-grid gap-2 mt-4">
+<button onclick="doSearch()" class="btn btn-light">Cari Data</button>
+<button onclick="exportExcel()" class="btn btn-success">Export Excel</button>
+</div>
+
+</div>
+</div>
+
+<!-- CONTENT -->
+<div class="col-md-9">
+<div class="table-card">
+
+<div class="loading-overlay" id="loadingOverlay">
+<div class="spinner-border"></div>
+</div>
+
+<div id="peraturanBox" class="peraturan-bar"></div>
+<div id="activeFilters" class="active-tag-box"></div>
+<div id="summaryBox"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+<div></div>
+<select id="pageSize" class="form-select form-select-sm" style="width:100px;">
+<option value="10">10</option>
+<option value="25">25</option>
+<option value="50">50</option>
+</select>
+</div>
+
+<div class="table-wrapper">
+<div id="result"></div>
+</div>
+
+<div id="pagination" class="pagination-clean"></div>
+
+</div>
+</div>
+
+</div>
+</div>
+
+<script>
+let currentPage=1;
+let pageSize=10;
+let tableData=[];
+let tableColumns=[];
+let sortColumn=null;
+let sortDirection="asc";
+
+/* Capitalize Each Word */
+function capitalizeEachWord(str){
+return String(str)
+  .replaceAll("_"," ")
+  .toLowerCase()
+  .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/* Format Ribuan */
+function formatNumber(val){
+if(val===null || val===undefined || val==="") return "";
+let num = String(val).replace(/\./g,"").replace(/,/g,"");
+if(!isNaN(num)){
+return Number(num).toLocaleString("id-ID");
+}
+return val;
+}
+
+/* Page size change */
+document.getElementById("pageSize").onchange=function(){
+pageSize=parseInt(this.value);
+currentPage=1;
+renderPage();
+};
+
+/* DROPDOWN DINAMIS */
+function loadKegiatan(kedeputianValue=""){
+  fetch("/api/kegiatan?kedeputian="+kedeputianValue)
+  .then(r=>r.json())
+  .then(data=>{
+    kegiatan.innerHTML='<option value="">Semua</option>';
+    data.forEach(k=>{
+      kegiatan.innerHTML+=`<option value="${k}">${k}</option>`;
+    });
+  });
+}
+
+kedeputian.onchange=function(){
+  loadKegiatan(this.value);
+};
+
+provinsi.onchange=function(){
+fetch("/api/kabkota?provinsi="+this.value)
+.then(r=>r.json())
+.then(data=>{
+kabkota.innerHTML='<option value="">Semua</option>';
+data.forEach(k=>{
+kabkota.innerHTML+=`<option value="${k}">${k}</option>`;
+});
+});
+};
+
+kegiatan.onchange=function(){
+fetch("/api/peraturan?kegiatan="+this.value)
+.then(r=>r.json())
+.then(t=>{
+if(t){
+peraturanBox.style.display="block";
+peraturanBox.innerHTML="<strong>Peraturan:</strong> "+t;
+}else{
+peraturanBox.style.display="none";
+}
+});
+};
+
+/* Active tag */
+function updateActiveTags(){
+let box=document.getElementById("activeFilters");
+box.innerHTML="";
+["kedeputian","kegiatan","provinsi","kabkota","kategori"].forEach(id=>{
+let el=document.getElementById(id);
+if(el.value){
+let tag=document.createElement("span");
+tag.className="active-tag";
+tag.innerHTML = `
+  ${capitalizeEachWord(id)}: ${el.value}
+  <span class="tag-close">&times;</span>
+`;
+tag.onclick=function(){
+el.value="";
+updateActiveTags();
+doSearch();
+};
+box.appendChild(tag);
+}
+});
+}
+
+/* Loading */
+function showLoading(){ loadingOverlay.style.display="flex"; }
+function hideLoading(){ loadingOverlay.style.display="none"; }
+
+/* Search */
+function doSearch(){
+updateActiveTags();
+showLoading();
+
+fetch("/api/search",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+kedeputian:kedeputian.value,
+kegiatan:kegiatan.value,
+provinsi:provinsi.value,
+kabkota:kabkota.value,
+kategori:kategori.value
+})
+})
+.then(r=>r.json())
+.then(res=>{
+tableData=res.data;
+
+tableColumns=res.columns
+.filter(col=>col!=="peraturan")
+.filter(col=>{
+return tableData.some(row=>{
+let val=row[col];
+return val!==null && val!=="" && val!==undefined;
+});
+});
+
+currentPage=1;
+renderPage();
+})
+.finally(()=>{
+setTimeout(hideLoading,300);
+});
+}
+
+function renderPage(){
+let start=(currentPage-1)*pageSize;
+let pageData=tableData.slice(start,start+pageSize);
+
+summaryBox.innerHTML=`Menampilkan ${tableData.length} data ditemukan`;
+
+let html='<table class="table table-bordered table-sm"><thead><tr>';
+tableColumns.forEach(c=>{
+html+=`<th onclick="sortTable('${c}')">${capitalizeEachWord(c)}</th>`;
+});
+html+='</tr></thead><tbody>';
+
+pageData.forEach(row=>{
+html+='<tr>';
+tableColumns.forEach(c=>{
+let raw=row[c];
+let val=formatNumber(raw);
+html+=`<td class="${!isNaN(raw)&&raw!==""&&raw!==null?'numeric-col':''}">${val}</td>`;
+});
+html+='</tr>';
+});
+
+html+='</tbody></table>';
+result.innerHTML=html;
+renderPagination();
+}
+
+function renderPagination(){
+let total=Math.ceil(tableData.length/pageSize);
+if(total<=1){pagination.innerHTML="";return;}
+pagination.innerHTML=`
+<button class="btn btn-sm btn-outline-primary" onclick="changePage(${currentPage-1})" ${currentPage===1?"disabled":""}>Prev</button>
+<span>Halaman ${currentPage} dari ${total}</span>
+<button class="btn btn-sm btn-outline-primary" onclick="changePage(${currentPage+1})" ${currentPage===total?"disabled":""}>Next</button>
+`;
+}
+
+function changePage(p){
+let total=Math.ceil(tableData.length/pageSize);
+if(p<1||p>total)return;
+currentPage=p;
+renderPage();
+}
+
+function sortTable(column){
+if(sortColumn===column){
+sortDirection = sortDirection==="asc" ? "desc" : "asc";
+}else{
+sortColumn=column;
+sortDirection="asc";
+}
+
+tableData.sort((a,b)=>{
+let valA=a[column] ?? "";
+let valB=b[column] ?? "";
+if(!isNaN(valA) && !isNaN(valB)){
+return sortDirection==="asc" ? valA-valB : valB-valA;
+}
+return sortDirection==="asc"
+? String(valA).localeCompare(String(valB))
+: String(valB).localeCompare(String(valA));
+});
+
+renderPage();
+}
+
+function exportExcel(){
+let params=new URLSearchParams({
+kedeputian:kedeputian.value,
+kegiatan:kegiatan.value,
+provinsi:provinsi.value,
+kabkota:kabkota.value,
+kategori:kategori.value
+});
+window.location="/api/export?"+params.toString();
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  loadKegiatan("");   // load semua kegiatan saat pertama buka
+});
+</script>
+
+</body>
+</html>
+
